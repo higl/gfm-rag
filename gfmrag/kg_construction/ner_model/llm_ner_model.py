@@ -2,7 +2,8 @@
 import logging
 from typing import Literal
 
-from langchain_community.chat_models import ChatLlamaCpp, ChatOllama
+from langchain_community.chat_models import ChatLlamaCpp
+from langchain_ollama import ChatOllama
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI

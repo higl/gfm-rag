@@ -5,7 +5,8 @@ from itertools import chain
 from typing import Literal
 
 import numpy as np
-from langchain_community.chat_models import ChatLlamaCpp, ChatOllama
+from langchain_community.chat_models import ChatLlamaCpp
+from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
 from gfmrag.kg_construction.langchain_util import init_langchain_model
@@ -232,6 +233,7 @@ class LLMOPENIEModel(BaseOPENIEModel):
                 "No entities extracted. Possibly model not following instructions"
             )
         triples = self.openie_post_ner_extract(text, doc_entities)
+
         res["extracted_entities"] = doc_entities
         try:
             res["extracted_triples"] = eval(triples)["triples"]
