@@ -18,8 +18,8 @@ dataset:
   data_name: hotpotqa_test # data name
 
 llm:
-  _target_: gfmrag.llms.ChatGPT # The language model to use
-  model_name_or_path: gpt-3.5-turbo # The model name or path
+  _target_: ollama # The language model to use
+  model_name_or_path: mistral # The model name or path
   retry: 5 # Number of retries
 
 graph_retriever:
