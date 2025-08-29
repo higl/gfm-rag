@@ -1,0 +1,16 @@
+root: tmp/kg_construction
+num_processes: 1  # GPU LLM not thread-safe
+cosine_sim_edges: true
+threshold: 0.82
+max_sim_neighbors: 50
+add_title: true
+force: false
+
+open_ie_model:
+  _target_: gfmrag.kg_construction.openie_model.qwen_openie.QwenOpenIE
+  max_ctx: 4096
+  batch_size: 4
+
+el_model:
+  _target_: gfmrag.kg_construction.entity_linking_model.sbert_el.SBertEL
+  model_name: all-MiniLM-L6-v2

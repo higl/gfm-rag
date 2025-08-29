@@ -1,0 +1,122 @@
+# determined.yaml
+description: gfm-rag-stage1-60datasets
+
+environment:
+  image: >-
+    registry.gitlab.aleph-alpha.de/research/gl-registry/flyte-determined:jQY5sy3o5NyUbqrFLSDkKA
+  force_pull_image: true
+  registry_auth:
+    username: gl-token
+    password: 
+    serveraddress: registry.gitlab.aleph-alpha.de
+  environment_variables:
+    - HF_HOME=/nfs/scratch_2/sohir.maskey/.cache/huggingface
+    - TRANSFORMERS_CACHE=/nfs/scratch_2/sohir.maskey/.cache/huggingface
+    - HF_DATASETS_CACHE=/nfs/scratch_2/sohir.maskey/.cache/huggingface/datasets
+    - GFM_OPENIE_USE_LLM=true
+    - DATA_ROOT=/nfs/scratch_2/sohir.maskey/repos/gfm-rag/data
+    - OLLAMA_LOCAL=/nfs/scratch_2/hans_higl/padawan/ollama/bin/ollama
+    - OMP_NUM_THREADS=4
+    - MKL_NUM_THREADS=4
+    - TOKENIZERS_PARALLELISM=true
+    - PYTHONNOUSERSITE=1
+    - PIP_ROOT_USER_ACTION=ignore
+    - PIP_DISABLE_PIP_VERSION_CHECK=1
+    - PIP_CACHE_DIR=/nfs/scratch_2/sohir.maskey/.cache/pip
+    - POETRY_VERSION=2.1.4
+    - POETRY_VIRTUALENVS_IN_PROJECT=true
+    - POETRY_CACHE_DIR=/nfs/scratch_2/sohir.maskey/.cache/poetry
+    - DATA_NAME=hotpotqa_train18
+    - GIT_PYTHON_REFRESH=quiet
+
+bind_mounts:
+  - container_path: /nfs/scratch_2
+    host_path: /nfs/scratch_2
+    read_only: false
+  - host_path: /nfs/scratch_2/hans_higl/padawan/ollama
+    container_path: /nfs/scratch_2/hans_higl/padawan/ollama
+    read_only: true
+
+resources:
+  slots_per_trial: 1
+  resource_pool: default
+  priority: 42
+
+hyperparameters:
+  kg_num_processes:
+    type: categorical
+    vals: [16]
+  qa_num_processes:
+    type: categorical
+    vals: [16]
+#   data_name:
+#     type: categorical
+#     vals:
+#       # - hotpotqa_train0
+#       # - hotpotqa_train1
+#       # - hotpotqa_train2
+#       # - hotpotqa_train3
+#       # - hotpotqa_train4
+#       # - hotpotqa_train5
+#       # - hotpotqa_train6
+#       # - hotpotqa_train7
+#       # - hotpotqa_train8
+#       # - hotpotqa_train9
+#       # - hotpotqa_train10
+#       # - hotpotqa_train11
+#       # - hotpotqa_train12
+#       # - hotpotqa_train13
+#       # - hotpotqa_train14
+#       # - hotpotqa_train15
+#       # - hotpotqa_train16
+#       # - hotpotqa_train17
+#       # - hotpotqa_train18
+#       # - hotpotqa_train19
+#       # - musique_train0
+#       # - musique_train1
+#       # - musique_train2
+#       # - musique_train3
+#       # - musique_train4
+#       # - musique_train5
+#       # - musique_train6
+#       # - musique_train7
+#       # - musique_train8
+#       # - musique_train9
+#       # - musique_train10
+#       # - musique_train11
+#       # - musique_train12
+#       # - musique_train13
+#       # - musique_train14
+#       # - musique_train15
+#       # - musique_train16
+#       # - musique_train17
+#       # - musique_train18
+#       # - musique_train19
+#       # - 2wikimultihopqa_train0
+#       # - 2wikimultihopqa_train1
+#       # - 2wikimultihopqa_train2
+#       # - 2wikimultihopqa_train3
+#       # - 2wikimultihopqa_train4
+#       # - 2wikimultihopqa_train5
+#       # - 2wikimultihopqa_train6
+#       # - 2wikimultihopqa_train7
+#       # - 2wikimultihopqa_train8
+#       # - 2wikimultihopqa_train9
+#       # - 2wikimultihopqa_train10
+#       # - 2wikimultihopqa_train11
+#       # - 2wikimultihopqa_train12
+#       # - 2wikimultihopqa_train13
+#       # - 2wikimultihopqa_train14
+#       # - 2wikimultihopqa_train15
+#       # - 2wikimultihopqa_train16
+#       # # - 2wikimultihopqa_train17
+#       # - 2wikimultihopqa_train18
+#       # - 2wikimultihopqa_train19
+
+searcher:
+  name: grid
+  metric: not_needed
+  max_concurrent_trials: 1
+
+entrypoint: >
+  bash scripts/stage1_det.sh

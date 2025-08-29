@@ -511,21 +511,40 @@ class KGConstructor(BaseKGConstructor):
         sim_neighbors = self.el_model(processed_phrases, topk=self.max_sim_neighbors)
 
         logger.info("Adding synonymy edges")
-        for phrase, neighbors in tqdm(sim_neighbors.items()):
+        for src_entity, neighbors in tqdm(sim_neighbors.items()):
             synonyms = []  # [(phrase_id, score)]
-            if len(re.sub("[^A-Za-z0-9]", "", phrase)) > 2:
-                phrase_id = kb_phrase_dict[phrase]
+            if len(re.sub("[^A-Za-z0-9]", "", src_entity)) > 2:
+                phrase_id = kb_phrase_dict[src_entity]
                 if phrase_id is not None:
                     num_nns = 0
+                    # NEW: ensure 'norm_score' exists on all neighbors
+                    if neighbors:
+                        if any("norm_score" not in n for n in neighbors):
+                            # derive raw scores from available fields
+                            raw_scores = []
+                            for n in neighbors:
+                                s = n.get("norm_score")
+                                if s is None:
+                                    s = n.get("score", n.get("similarity", n.get("cosine", 0.0)))
+                                try:
+                                    raw_scores.append(float(s))
+                                except (TypeError, ValueError):
+                                    raw_scores.append(0.0)
+                            mn = min(raw_scores) if raw_scores else 0.0
+                            mx = max(raw_scores) if raw_scores else 1.0
+                            denom = (mx - mn) if (mx - mn) != 0 else 1.0
+                            for n, s in zip(neighbors, raw_scores):
+                                if "norm_score" not in n:
+                                    n["norm_score"] = (s - mn) / denom
+
+                    # now safe to use neighbor["norm_score"]
                     for neighbor in neighbors:
-                        n_entity = neighbor["entity"]
                         n_score = neighbor["norm_score"]
                         if n_score < self.threshold or num_nns > self.max_sim_neighbors:
                             break
-                        if n_entity != phrase:
-                            phrase2_id = kb_phrase_dict[n_entity]
-                            if phrase2_id is not None:
-                                phrase2 = n_entity
-                                synonyms.append((n_entity, n_score))
-                                graph[(phrase, phrase2)] = "equivalent"
-                                num_nns += 1
+                        if neighbor["entity"] != src_entity:
+                            synonyms.append((neighbor["entity"], n_score))
+                            graph[(src_entity, neighbor["entity"])] = "equivalent"
+                            num_nns += 1
+
+        logger.info(f"Number of synonymy edges added: {len([e for e in graph.keys() if graph[e] == 'equivalent'])}")

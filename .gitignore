@@ -12,3 +12,7 @@ logs/
 dist/*
 site/
 .DS_Store
+
+# new
+data/
+toy_docs/

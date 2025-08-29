@@ -1,6 +1,7 @@
 # Adapt from: https://github.com/OSU-NLP-Group/HippoRAG/blob/main/src/named_entity_extraction_parallel.py
 import logging
 from typing import Literal
+import re
 
 from langchain_community.chat_models import ChatLlamaCpp
 from langchain_ollama import ChatOllama
@@ -10,6 +11,7 @@ from langchain_openai import ChatOpenAI
 
 from gfmrag.kg_construction.langchain_util import init_langchain_model
 from gfmrag.kg_construction.utils import extract_json_dict, processing_phrases
+from gfmrag.kg_construction.openie_extraction_instructions import ner_prompts
 
 from .base_model import BaseNERModel
 
@@ -78,79 +80,128 @@ class LLMNERModel(BaseNERModel):
 
         self.client = init_langchain_model(llm_api, model_name)
 
+    @staticmethod
+    def _unwrap_response(resp: any) -> any:
+        """Return the underlying content/dict/string from a LangChain/LLM response object."""
+        # LangChain message-like objects often expose `.content`
+        try:
+            if hasattr(resp, "content"):
+                return resp.content
+        except Exception:
+            pass
+        # Some clients may return a dict already
+        if isinstance(resp, dict):
+            return resp
+        # If it's a string, return as-is
+        if isinstance(resp, str):
+            return resp
+        # If it's list/tuple, return as-is
+        if isinstance(resp, (list, tuple)):
+            return resp
+        # Fallback: try to coerce to string
+        try:
+            return str(resp)
+        except Exception:
+            return ""
+
     def __call__(self, text: str) -> list:
-        """Process text input to extract named entities using different chat models.
-
-        This method handles entity extraction using various chat models (OpenAI, Ollama, LlamaCpp),
-        with special handling for JSON mode responses.
-
-        Args:
-            text (str): The input text to extract named entities from.
-
-        Returns:
-            list: A list of processed named entities extracted from the text.
-                 Returns empty list if extraction fails.
-
-        Raises:
-            None: Exceptions are caught and handled internally, logging errors when they occur.
-
-        Examples:
-            >>> ner_model = NERModel()
-            >>> entities = ner_model("Sample text with named entities")
-            >>> print(entities)
-            ['Entity1', 'Entity2']
         """
-        query_ner_prompts = ChatPromptTemplate.from_messages(
-            [
-                SystemMessage("You're a very effective entity extraction system."),
-                HumanMessage(query_prompt_one_shot_input),
-                AIMessage(query_prompt_one_shot_output),
-                HumanMessage(query_prompt_template.format(text)),
-            ]
-        )
-        query_ner_messages = query_ner_prompts.format_prompt()
+        Call the LLM NER pipeline and return a list (possibly empty) of named entities.
+        """
+        # Build prompt object using the shared prompt template (same as other modules)
+        try:
+            prompt_obj = ner_prompts.format_prompt(user_input=text)
+        except Exception:
+            # Fallback to simple template string if prompt object not available
+            prompt_obj = None
+            raw_prompt = query_prompt_template.format(text)
 
-        json_mode = False
-        if isinstance(self.client, ChatOpenAI):  # JSON mode
-            chat_completion = self.client.invoke(
-                query_ner_messages.to_messages(),
-                temperature=0,
-                max_tokens=self.max_tokens,
-                stop=["\n\n"],
-                response_format={"type": "json_object"},
-            )
-            response_content = chat_completion.content
-            chat_completion.response_metadata["token_usage"]["total_tokens"]
-            json_mode = True
-        elif isinstance(self.client, ChatOllama) or isinstance(
-            self.client, ChatLlamaCpp
-        ):
-            response_content = self.client.invoke(query_ner_messages.to_messages())
-            response_content = extract_json_dict(response_content)
-            len(response_content.split())
-        else:  # no JSON mode
-            chat_completion = self.client.invoke(
-                query_ner_messages.to_messages(),
-                temperature=0,
-                max_tokens=self.max_tokens,
-                stop=["\n\n"],
-            )
-            response_content = chat_completion.content
-            response_content = extract_json_dict(response_content)
-            chat_completion.response_metadata["token_usage"]["total_tokens"]
-
-        if not json_mode:
-            try:
-                assert "named_entities" in response_content
-                response_content = str(response_content)
-            except Exception as e:
-                print("Query NER exception", e)
-                response_content = {"named_entities": []}
+        response_content = []
 
         try:
-            ner_list = eval(response_content)["named_entities"]
-            query_ner_list = [processing_phrases(ner) for ner in ner_list]
-            return query_ner_list
+            # For ChatOpenAI, ChatOllama, ChatLlamaCpp, call with prompt_obj.to_messages() when available
+            if isinstance(self.client, ChatOpenAI):
+                if prompt_obj is not None and hasattr(prompt_obj, "to_messages"):
+                    chat_completion = self.client.invoke(
+                        prompt_obj.to_messages(),
+                        temperature=0,
+                        max_tokens=self.max_tokens,
+                        stop=["\n\n"],
+                        response_format={"type": "json_object"},
+                    )
+                else:
+                    chat_completion = self.client.invoke(
+                        raw_prompt if prompt_obj is None else prompt_obj,
+                        temperature=0,
+                        max_tokens=self.max_tokens,
+                        stop=["\n\n"],
+                        response_format={"type": "json_object"},
+                    )
+                raw = self._unwrap_response(chat_completion)
+                if isinstance(raw, str):
+                    response_content = extract_json_dict(raw)
+                else:
+                    response_content = raw
+
+            elif isinstance(self.client, ChatOllama) or isinstance(self.client, ChatLlamaCpp):
+                # LangChain wrappers may return AIMessage-like objects; use prompt_obj when possible
+                if prompt_obj is not None and hasattr(prompt_obj, "to_messages"):
+                    resp = self.client.invoke(prompt_obj.to_messages())
+                else:
+                    resp = self.client.invoke(raw_prompt if prompt_obj is None else prompt_obj)
+                raw = self._unwrap_response(resp)
+                if isinstance(raw, str):
+                    response_content = extract_json_dict(raw)
+                else:
+                    response_content = raw
+
+            else:
+                # Generic client path
+                if prompt_obj is not None and hasattr(prompt_obj, "to_messages"):
+                    chat_completion = self.client.invoke(prompt_obj.to_messages(), temperature=0)
+                else:
+                    chat_completion = self.client.invoke(raw_prompt if prompt_obj is None else prompt_obj, temperature=0)
+                raw = self._unwrap_response(chat_completion)
+                if isinstance(raw, str):
+                    response_content = extract_json_dict(raw)
+                else:
+                    response_content = raw
+
+            # Normalize result to list of entities if possible
+            if isinstance(response_content, dict) and "named_entities" in response_content:
+                entities = response_content["named_entities"]
+            else:
+                entities = response_content
+
+            # Fallback normalization to list of strings
+            normalized = []
+            if isinstance(entities, list):
+                for e in entities:
+                    if isinstance(e, dict):
+                        txt = e.get("text") or e.get("entity") or e.get("name") or e.get("value") or ""
+                        if txt:
+                            normalized.append(str(txt))
+                    elif isinstance(e, (str, int, float)):
+                        normalized.append(str(e))
+            elif isinstance(entities, dict):
+                # keys or values may encode entities
+                for v in entities.values():
+                    if isinstance(v, list):
+                        for it in v:
+                            normalized.append(str(it))
+                    else:
+                        normalized.append(str(v))
+            elif isinstance(entities, str):
+                # comma/line separated
+                normalized = [p.strip() for p in re.split(r"[,\n;]+", entities) if p.strip()]
+
         except Exception as e:
-            logger.error(f"Error in extracting named entities: {e}")
-            return []
+            logger.error(f"Error in NER extraction: {e}")
+            normalized = []
+
+        # deduplicate & return
+        seen = set(); out = []
+        for x in normalized:
+            if x not in seen and x:
+                seen.add(x); out.append(x)
+        return out

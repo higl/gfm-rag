@@ -1,6 +1,6 @@
 # Large scale fine-tuning
 DATA_ROOT="data"
-N_GPU=8
+N_GPU=2
 N_EPOCH=15
 START_N=0
 END_N=19
@@ -19,7 +19,7 @@ torchrun --nproc_per_node=${N_GPU} -m gfmrag.workflow.stage2_qa_finetune \
     train.num_epoch=${N_EPOCH}
 
 # Retrieval evaluation
-N_GPU=4
+N_GPU=2
 DATA_ROOT="data"
 checkpoints=rmanluo/GFM-RAG-8M # Or the path to your checkpoints
 torchrun --nproc_per_node=${N_GPU} -m gfmrag.workflow.stage2_qa_finetune \
