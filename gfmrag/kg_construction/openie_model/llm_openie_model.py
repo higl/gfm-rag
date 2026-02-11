@@ -336,6 +336,7 @@ class LLMOPENIEModel(BaseOPENIEModel):
                 response_content = chat_completion.content
 
             elif isinstance(self.client, ChatOllama) or isinstance(self.client, ChatLlamaCpp):
+                print(f'Message: {openie_messages.to_messages()}')
                 response_content = self.client.invoke(openie_messages.to_messages()).content
                 # try to get JSON-like dict
                 response_content = extract_json_dict(response_content)

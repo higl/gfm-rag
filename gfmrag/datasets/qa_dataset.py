@@ -298,6 +298,11 @@ class QADataset(InMemoryDataset):
         supporting_docs_masks = torch.stack(supporting_docs_masks)
         sample_id = torch.tensor(sample_id, dtype=torch.long)
 
+        print(question_embeddings.size())
+        print(question_entities_masks.size())
+        print(supporting_entities_masks.size())
+        print(supporting_docs_masks.size())
+        print(sample_id.size())
         dataset = datasets.Dataset.from_dict(
             {
                 "question_embeddings": question_embeddings,
@@ -307,11 +312,14 @@ class QADataset(InMemoryDataset):
                 "sample_id": sample_id,
             }
         ).with_format("torch")
+        print(dataset.shape)
+        dataset.to_parquet('/nfs/scratch_2/hans_higl/padawan/debug.parquet')
         offset = 0
         splits = []
         for num_sample in num_samples:
             split = torch_data.Subset(dataset, range(offset, offset + num_sample))
             splits.append(split)
+            print(split)
             offset += num_sample
         torch.save(splits, self.processed_paths[0])
 

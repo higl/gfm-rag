@@ -11,8 +11,8 @@ defaults:
 seed: 1024
 
 dataset:
-  root: ./data
-  data_name: hotpotqa_test
+  root: ../gfm-rag-data/
+  data_name: padawan
 
 llm:
   _target_: gfmrag.llms.Ollama
@@ -21,7 +21,8 @@ llm:
   retry: 5
 
 graph_retriever:
-  model_path: rmanluo/GFM-RAG-8M
+  #model_path: rmanluo/GFM-RAG-8M
+  model_path: /nfs/scratch_2/hans_higl/padawan/d2p/outputs/qa_finetune/2025-09-16/13-23-15/pretrained/
 
 test:
   retrieval_batch_size: 8

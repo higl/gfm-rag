@@ -12,16 +12,14 @@ seed: 1024
 datasets:
   _target_: gfmrag.datasets.QADataset # The QA dataset class
   cfgs:
-    root: ./data # data root directory
+    root: ../gfm-rag-data/ # data root directory
     force_rebuild: False # Whether to force rebuild the dataset
     text_emb_model_cfgs: ${text_emb_model} # The text embedding model configuration
   train_names: # List of training dataset names
-    - hotpotqa_train_example
+    - padawan
   valid_names: # List of validation dataset names
-    - hotpotqa_test
-    - musique_test
-    - 2wikimultihopqa_test
-  init_datasets: True # Whether to pre-process datasets at the beginning, if true, it will pre-process all datasets in the train_names and valid_names at the beginning
+    - padawan
+  init_datasets: False # Whether to pre-process datasets at the beginning, if true, it will pre-process all datasets in the train_names and valid_names at the beginning
   feat_dim: 768 # Feature dimension for the embeddings, must be given if init_datasets is False
   max_datasets_in_memory: 10 # Number of datasets to load into memory at once
   data_loading_workers: 4 # Number of workers for data loading
@@ -65,7 +63,7 @@ optimizer:
 
 # Training configuration
 train:
-  batch_size: 8
+  batch_size: 2
   num_epoch: 20
   log_interval: 100
   batch_per_epoch: null
