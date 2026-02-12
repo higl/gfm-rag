@@ -59,7 +59,7 @@ def init_langchain_model(
         # https://python.langchain.com/v0.2/docs/integrations/chat/llamacpp/
 
         return ChatLlamaCpp(
-            model_path=model_name, verbose=True
+            model_path=model_name
         )  # model_name is the model path (gguf file)
     else:
         # add any LLMs you want to use here using LangChain

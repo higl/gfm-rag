@@ -3,6 +3,11 @@ import logging
 import os
 from multiprocessing.dummy import Pool as ThreadPool
 
+import langchain
+langchain.verbose = False
+langchain.debug = False
+langchain.llm_cache = False
+
 import hydra
 import torch
 from hydra.core.hydra_config import HydraConfig
@@ -170,7 +175,7 @@ def main(cfg: DictConfig) -> None:
         if cfg.test.prediction_result_path:
             output_path = cfg.test.prediction_result_path
         else:
-            output_path = ans_prediction(cfg, output_dir, qa_data, retrieval_result)
+            output_path = ans_prediction(cfg, output_dir, qa_data[:100], retrieval_result)
 
         # Evaluation
         evaluator = instantiate(cfg.qa_evaluator, prediction_file=output_path)

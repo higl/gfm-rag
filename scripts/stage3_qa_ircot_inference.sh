@@ -1,8 +1,8 @@
 # IRCoT + GFM-RAG inference on QA tasks
 N_GPU=1
 DATA_ROOT="data"
-DATA_NAME="hotpotqa" # hotpotqa musique 2wikimultihopqa
-LLM="gpt-4o-mini"
+DATA_NAME="2wikimultihopqa" # hotpotqa musique 2wikimultihopqa
+LLM="ollama"
 MAX_STEPS=3
 MAX_SAMPLE=-1
 python -m gfmrag.workflow.stage3_qa_ircot_inference \

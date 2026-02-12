@@ -10,7 +10,7 @@ defaults:
 
 dataset:
   root: ./data # data root directory
-  data_name: hotpotqa # data name
+  data_name: 2wikimultihopqa # data name
 
 kg_constructor:
   _target_: gfmrag.kg_construction.KGConstructor # The KGConstructor class

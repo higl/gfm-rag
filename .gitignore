@@ -12,3 +12,8 @@ logs/
 dist/*
 site/
 .DS_Store
+data/
+ollama-darwin/
+ollama-linux-amd64/
+Anaconda3-2025.12-2-Linux-x86_64.sh
+ollama-linux-amd64.tgz

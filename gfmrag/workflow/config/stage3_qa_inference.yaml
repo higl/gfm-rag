@@ -5,14 +5,14 @@ hydra:
 defaults:
   - _self_
   - doc_ranker: idf_topk_ranker
-  - qa_prompt: hotpotqa
-  - qa_evaluator: hotpotqa
+  - qa_prompt: 2wikimultihopqa
+  - qa_evaluator: 2wikimultihopqa
 
 seed: 1024
 
 dataset:
   root: ./data
-  data_name: hotpotqa_test
+  data_name: 2wikimultihopqa_test
 
 llm:
   _target_: gfmrag.llms.ChatGPT
