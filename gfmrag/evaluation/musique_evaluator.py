@@ -1,10 +1,13 @@
 # Adapt from: https://github.com/OSU-NLP-Group/HippoRAG/blob/main/src/qa/musique_evaluation.py
 import collections
+import logging
 import re
 import string
 from collections.abc import Callable
 
 from gfmrag.evaluation.base_evaluator import BaseEvaluator
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_answer(s: str) -> str:
@@ -85,25 +88,43 @@ class MusiqueEvaluator(BaseEvaluator):
     MusiqueEvaluator
     """
 
+    def __init__(self, prediction_file: str, log_per_query: bool = False) -> None:
+        super().__init__(prediction_file)
+        self.log_per_query = log_per_query
+
+    @staticmethod
+    def evaluate_single(pred: dict) -> dict:
+        """Evaluate a single prediction and return its metrics."""
+        if "Answer: " in pred["response"]:
+            pre_ans = pred["response"].split("Answer:")[1].strip()
+        else:
+            pre_ans = pred["response"]
+        gold_answers = [pred["answer"]] + pred.get("answer_aliases", [])
+        em = metric_max_over_ground_truths(compute_exact, pre_ans, gold_answers)
+        f1, precision, recall = metric_max_f1_over_ground_truths(compute_f1, pre_ans, gold_answers)
+        
+        return {
+            "em": float(em),
+            "f1": f1,
+            "precision": precision,
+            "recall": recall,
+        }
+
     def evaluate(self) -> dict:
         metrics = {"em": 0.0, "f1": 0.0, "precision": 0.0, "recall": 0.0}
 
         for pred in self.data:
-            if "Answer: " in pred["response"]:
-                pre_ans = pred["response"].split("Answer:")[1].strip()
-            else:
-                pre_ans = pred["response"]
-            gold_answers = [pred["answer"]] + pred["answer_aliases"]
-            em = metric_max_over_ground_truths(compute_exact, pre_ans, gold_answers)
-            (
-                f1,
-                precision,
-                recall,
-            ) = metric_max_f1_over_ground_truths(compute_f1, pre_ans, gold_answers)
-            metrics["em"] += float(em)
-            metrics["f1"] += f1
-            metrics["precision"] += precision
-            metrics["recall"] += recall
+            single_metrics = self.evaluate_single(pred)
+            
+            if self.log_per_query:
+                logger.info(
+                    f"Query id={pred.get('id', 'N/A')}: "
+                    f"em={single_metrics['em']:.4f}, f1={single_metrics['f1']:.4f}, "
+                    f"precision={single_metrics['precision']:.4f}, recall={single_metrics['recall']:.4f}"
+                )
+            
+            for k in metrics.keys():
+                metrics[k] += single_metrics[k]
 
         n = len(self.data)
         for k in metrics.keys():

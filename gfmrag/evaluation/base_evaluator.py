@@ -27,7 +27,8 @@ class BaseEvaluator(ABC):
     def __init__(self, prediction_file: str) -> None:
         super().__init__()
         with open(prediction_file) as f:
-            self.data = [json.loads(line) for line in f]
+            # Skip lines starting with '#' (metric comment lines)
+            self.data = [json.loads(line) for line in f if not line.startswith('#')]
 
     @abstractmethod
     def evaluate(self) -> dict:

@@ -1,9 +1,12 @@
 # Adapt from: https://github.com/OSU-NLP-Group/HippoRAG/blob/main/src/qa/hotpotqa_evaluation.py
+import logging
 import re
 import string
 from collections import Counter
 
 from gfmrag.evaluation.base_evaluator import BaseEvaluator
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_answer(s: str) -> str:
@@ -71,15 +74,44 @@ class HotpotQAEvaluator(BaseEvaluator):
     HotpotQAEvaluator
     """
 
+    def __init__(self, prediction_file: str, log_per_query: bool = False) -> None:
+        super().__init__(prediction_file)
+        self.log_per_query = log_per_query
+
+    @staticmethod
+    def evaluate_single(pred: dict) -> dict:
+        """Evaluate a single prediction and return its metrics."""
+        if "Answer: " in pred["response"]:
+            pre_ans = pred["response"].split("Answer:")[1].strip()
+        else:
+            pre_ans = pred["response"]
+        
+        gold = pred["answer"]
+        em = exact_match_score(pre_ans, gold)
+        f1, precision, recall = f1_score(pre_ans, gold)
+        
+        return {
+            "em": float(em),
+            "f1": f1,
+            "precision": precision,
+            "recall": recall,
+        }
+
     def evaluate(self) -> dict:
         metrics = {"em": 0.0, "f1": 0.0, "precision": 0.0, "recall": 0.0}
 
         for pred in self.data:
-            if "Answer: " in pred["response"]:
-                pre_ans = pred["response"].split("Answer:")[1].strip()
-            else:
-                pre_ans = pred["response"]
-            em, f1, prec, recall = update_answer(metrics, pre_ans, pred["answer"])
+            single_metrics = self.evaluate_single(pred)
+            
+            if self.log_per_query:
+                logger.info(
+                    f"Query id={pred.get('id', 'N/A')}: "
+                    f"em={single_metrics['em']:.4f}, f1={single_metrics['f1']:.4f}, "
+                    f"precision={single_metrics['precision']:.4f}, recall={single_metrics['recall']:.4f}"
+                )
+            
+            for k in metrics.keys():
+                metrics[k] += single_metrics[k]
 
         n = len(self.data)
         for k in metrics.keys():

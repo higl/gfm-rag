@@ -30,3 +30,6 @@ def extract_json_dict(text: str) -> str | dict:
             return ""
     else:
         return ""
+
+#Maybe add a function here that extracts just the "Answer" part of the response?
+#But it works as it is for 2wikiqa, but sometime "Answer" is not generated, so yeah could use some improvement

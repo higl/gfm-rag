@@ -1,9 +1,12 @@
 # Adapt from: https://github.com/OSU-NLP-Group/HippoRAG/blob/main/src/qa/twowikimultihopqa_evaluation.py
+import logging
 import re
 import string
 from collections import Counter
 
 from gfmrag.evaluation.base_evaluator import BaseEvaluator
+
+logger = logging.getLogger(__name__)
 
 
 def normalize_answer(s: str) -> str:
@@ -86,16 +89,49 @@ class TwoWikiQAEvaluator(BaseEvaluator):
     TwoWikiQAEvaluator
     """
 
+    def __init__(self, prediction_file: str, log_per_query: bool = False) -> None:
+        super().__init__(prediction_file)
+        self.log_per_query = log_per_query
+
+    @staticmethod
+    def evaluate_single(pred: dict) -> dict:
+        """Evaluate a single prediction and return its metrics."""
+        if "Answer: " in pred["response"]:
+            pre_ans = pred["response"].split("Answer:")[1].strip()
+        else:
+            pre_ans = pred["response"]
+        gold_answers = [pred["answer"]] + pred.get("answer_aliases", [])
+        
+        max_em, max_f1, max_prec, max_recall = 0, 0, 0, 0
+        for gold in gold_answers:
+            em, f1, prec, recall = eval_answer(pre_ans, gold)
+            max_em = max(max_em, em)
+            max_f1 = max(max_f1, f1)
+            max_prec = max(max_prec, prec)
+            max_recall = max(max_recall, recall)
+        
+        return {
+            "em": float(max_em),
+            "f1": max_f1,
+            "precision": max_prec,
+            "recall": max_recall,
+        }
+
     def evaluate(self) -> dict:
         metrics = {"em": 0.0, "f1": 0.0, "precision": 0.0, "recall": 0.0}
 
         for pred in self.data:
-            if "Answer: " in pred["response"]:
-                pre_ans = pred["response"].split("Answer:")[1].strip()
-            else:
-                pre_ans = pred["response"]
-            gold_answers = [pred["answer"]] + pred["answer_aliases"]
-            em, f1, prec, recall = update_answer(metrics, pre_ans, gold_answers)
+            single_metrics = self.evaluate_single(pred)
+            
+            if self.log_per_query:
+                logger.info(
+                    f"Query id={pred.get('id', 'N/A')}: "
+                    f"em={single_metrics['em']:.4f}, f1={single_metrics['f1']:.4f}, "
+                    f"precision={single_metrics['precision']:.4f}, recall={single_metrics['recall']:.4f}"
+                )
+            
+            for k in metrics.keys():
+                metrics[k] += single_metrics[k]
 
         n = len(self.data)
         for k in metrics.keys():

@@ -118,6 +118,14 @@ def ans_prediction(
                 "retrieved_docs": retrieved_docs,
             }
 
+    # Get the evaluator class for per-query metrics
+    evaluator_cls = None
+    try:
+        from hydra.utils import get_class
+        evaluator_cls = get_class(cfg.qa_evaluator._target_)
+    except Exception:
+        pass
+
     with open(os.path.join(output_dir, "prediction.jsonl"), "w") as f:
         with ThreadPool(cfg.test.n_threads) as pool:
             for results in tqdm(
@@ -129,6 +137,16 @@ def ans_prediction(
                     continue
 
                 f.write(json.dumps(results) + "\n")
+                
+                # Write per-query metrics on a new line
+                if evaluator_cls is not None and hasattr(evaluator_cls, 'evaluate_single'):
+                    try:
+                        single_metrics = evaluator_cls.evaluate_single(results)
+                        metrics_line = f"# METRICS: id={results.get('id', 'N/A')} em={single_metrics['em']:.4f} f1={single_metrics['f1']:.4f} precision={single_metrics['precision']:.4f} recall={single_metrics['recall']:.4f}"
+                        f.write(metrics_line + "\n")
+                    except Exception as e:
+                        logger.debug(f"Per-query metric computation failed: {e}")
+                
                 f.flush()
 
     return os.path.join(output_dir, "prediction.jsonl")
@@ -172,10 +190,14 @@ def main(cfg: DictConfig) -> None:
             torch.save(
                 retrieval_result, os.path.join(output_dir, "retrieval_result.pt")
             )
+
         if cfg.test.prediction_result_path:
             output_path = cfg.test.prediction_result_path
         else:
-            output_path = ans_prediction(cfg, output_dir, qa_data[:100], retrieval_result)
+            # Limit to first 20 data instances for quick testing
+            qa_data.raw_test_data = qa_data.raw_test_data[:20]
+            retrieval_result = retrieval_result[:20]
+            output_path = ans_prediction(cfg, output_dir, qa_data, retrieval_result)
 
         # Evaluation
         evaluator = instantiate(cfg.qa_evaluator, prediction_file=output_path)
