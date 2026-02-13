@@ -100,7 +100,7 @@ class Ollama(BaseLanguageModel):
         while cur_retry <= num_retry:
             try:
                 response = self.client.invoke(message).content
-                #response = extract_json_dict(response) 
+                response = extract_json_dict(response) 
                 return response
             except Exception as e:
                 logger.error("Message: ", llm_input)

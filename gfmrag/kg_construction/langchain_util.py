@@ -1,7 +1,8 @@
 import os
 from typing import Any
 
-from langchain_community.chat_models import ChatLlamaCpp, ChatOllama
+from langchain_community.chat_models import ChatLlamaCpp
+from langchain_ollama import ChatOllama
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_openai import ChatOpenAI
 from langchain_together import ChatTogether

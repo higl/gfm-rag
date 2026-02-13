@@ -15,8 +15,9 @@ dataset:
   data_name: 2wikimultihopqa_test
 
 llm:
-  _target_: gfmrag.llms.ChatGPT
-  model_name_or_path: gpt-3.5-turbo
+  _target_: gfmrag.llms.Ollama
+  model_name: mistral
+  maximum_token: 4096
   retry: 5
 
 graph_retriever:
