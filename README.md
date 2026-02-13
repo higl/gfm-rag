@@ -64,42 +64,6 @@ conda install cuda-toolkit -c nvidia/label/cuda-12.4.1 # Replace with your desir
 pip install gfmrag
 ```
 
-### Using uv (pip-compatible project manager)
-
-If you prefer `uv` instead of Poetry/conda, we provide `requirements.txt` files generated from `pyproject.toml`.
-
-Install `uv` (one of the options):
-
-```bash
-pip install uv
-# or use the official installer: curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-Create a project virtual environment with Python 3.12 and activate it:
-
-```bash
-uv venv --python 3.12
-source .venv/bin/activate
-```
-
-Install runtime dependencies (platform-aware `faiss` selection is encoded in `requirements.txt`):
-
-```bash
-uv pip sync requirements.txt
-```
-
-Optionally install development or docs dependencies:
-
-```bash
-uv pip sync requirements-dev.txt   # dev tools (mypy, pytest, pre-commit)
-uv pip sync requirements-doc.txt   # documentation build deps
-```
-
-Notes:
-- On macOS the `faiss-cpu` package will be selected automatically by the environment markers in `requirements.txt`.
-- For GPU `faiss` builds you need a Linux x86_64 machine with CUDA installed; the `faiss-gpu-cu12` marker selects that on compatible systems.
-
-
 ## Quick Start
 
 > [!NOTE]
