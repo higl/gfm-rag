@@ -91,6 +91,87 @@ class LLMOPENIEModel(BaseOPENIEModel):
 
         self.client = init_langchain_model(llm_api, model_name)
 
+    def _parse_triples(self, triples_data) -> list:
+        """
+        Parse triples from various LLM output formats into a standardized list of [subject, predicate, object].
+
+        Handles the following formats:
+            - {"triples": [[s, p, o], ...]} - expected format
+            - [{"subject": ..., "predicate": ..., "object": ...}, ...] - list of dicts
+            - {"subject": ..., "predicate": ..., "object": ...} - single dict
+            - [[s, p, o], ...] - direct list of lists
+            - String representations of the above
+
+        Args:
+            triples_data: Raw triples data from LLM (str or dict or list)
+
+        Returns:
+            list: List of triples in [[subject, predicate, object], ...] format
+        """
+        # If it's a string, try to parse it
+        if isinstance(triples_data, str):
+            try:
+                triples_data = eval(triples_data)
+            except Exception:
+                try:
+                    triples_data = json.loads(triples_data)
+                except Exception:
+                    logger.warning(f"Could not parse triples string: {triples_data[:100]}...")
+                    return []
+
+        # If it's None or empty
+        if not triples_data:
+            return []
+
+        # Handle dict with "triples" key (expected format)
+        if isinstance(triples_data, dict):
+            if "triples" in triples_data:
+                return self._parse_triples(triples_data["triples"])
+            # Single triple as dict: {"subject": ..., "predicate": ..., "object": ...}
+            elif "subject" in triples_data and "predicate" in triples_data and "object" in triples_data:
+                return [[triples_data["subject"], triples_data["predicate"], triples_data["object"]]]
+            # Try other common key names
+            elif "head" in triples_data and "relation" in triples_data and "tail" in triples_data:
+                return [[triples_data["head"], triples_data["relation"], triples_data["tail"]]]
+            else:
+                logger.warning(f"Unknown dict format for triples: {triples_data}")
+                return []
+
+        # Handle list
+        if isinstance(triples_data, list):
+            if not triples_data:
+                return []
+
+            # Check if this is a single triple [s, p, o] where all elements are strings
+            if len(triples_data) >= 3 and all(isinstance(x, str) for x in triples_data[:3]):
+                return [[triples_data[0], triples_data[1], triples_data[2]]]
+
+            result = []
+            for item in triples_data:
+                # Each item is a list [s, p, o] with string elements
+                if isinstance(item, list) and len(item) >= 3 and all(isinstance(x, str) for x in item[:3]):
+                    result.append([item[0], item[1], item[2]])
+                # Nested list - recurse
+                elif isinstance(item, list):
+                    result.extend(self._parse_triples(item))
+                # Each item is a dict {"subject": ..., "predicate": ..., "object": ...}
+                elif isinstance(item, dict):
+                    if "subject" in item and "predicate" in item and "object" in item:
+                        result.append([item["subject"], item["predicate"], item["object"]])
+                    elif "head" in item and "relation" in item and "tail" in item:
+                        result.append([item["head"], item["relation"], item["tail"]])
+                    else:
+                        logger.warning(f"Unknown dict format in triple list: {item}")
+                # Each item is a tuple
+                elif isinstance(item, tuple) and len(item) >= 3:
+                    result.append([item[0], item[1], item[2]])
+                else:
+                    logger.warning(f"Could not parse triple item: {item}")
+            return result
+
+        logger.warning(f"Unknown triples format: {type(triples_data)}")
+        return []
+
     def ner(self, text: str) -> list:
         """
         Performs Named Entity Recognition (NER) on the input text using different LLM clients.
@@ -124,10 +205,12 @@ class LLMOPENIEModel(BaseOPENIEModel):
             elif isinstance(self.client, ChatOllama) or isinstance(
                 self.client, ChatLlamaCpp
             ):
-                response_content = self.client.invoke(
+                response_content_raw = self.client.invoke(
                     ner_messages.to_messages()
                 ).content
-                response_content = extract_json_dict(response_content)
+                print(response_content_raw)
+                response_content = extract_json_dict(response_content_raw)
+                print(response_content)
 
             else:  # no JSON mode
                 chat_completion = self.client.invoke(
@@ -184,11 +267,13 @@ class LLMOPENIEModel(BaseOPENIEModel):
             elif isinstance(self.client, ChatOllama) or isinstance(
                 self.client, ChatLlamaCpp
             ):
-                response_content = self.client.invoke(
+                response_content_raw = self.client.invoke(
                     openie_messages.to_messages()
                 ).content
-                response_content = extract_json_dict(response_content)
-                response_content = str(response_content)
+                print(response_content_raw)
+                response_content = extract_json_dict(response_content_raw)
+                print(response_content)
+                #response_content = str(response_content)
             else:  # no JSON mode
                 chat_completion = self.client.invoke(
                     openie_messages.to_messages(),
@@ -233,11 +318,12 @@ class LLMOPENIEModel(BaseOPENIEModel):
                 "No entities extracted. Possibly model not following instructions"
             )
         triples = self.openie_post_ner_extract(text, doc_entities)
+        print(triples)
 
         res["extracted_entities"] = doc_entities
-        try:
-            res["extracted_triples"] = eval(triples)["triples"]
-        except Exception:
-            logger.error(f"Error in parsing triples: {triples}")
+        parsed_triples = self._parse_triples(triples)
+        if not parsed_triples and triples:
+            logger.warning(f"Could not parse any triples from: {triples}")
+        res["extracted_triples"] = parsed_triples
 
         return res
